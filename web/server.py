@@ -18,7 +18,7 @@ import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from decimal import Decimal
@@ -43,28 +43,51 @@ MAX_BYTES = 10 * 1024 * 1024
 
 app = FastAPI(title="IntelDoc")
 
-# Optional protection for a public link: set DEMO_PASSWORD in .env and the browser asks for it
-# (any username). Off when unset, so local use is unchanged.
-_DEMO_PASSWORD = __import__("os").getenv("DEMO_PASSWORD", "")
+# Optional protection for a public link (off when DEMO_PASSWORD is unset, so local use is unchanged):
+#   DEMO_PASSWORD                    owner - any username, full access
+#   GUEST_USERNAME + GUEST_PASSWORD  e.g. for interviewers - everything except wiping history
+_ENV = __import__("os").environ
+_DEMO_PASSWORD = _ENV.get("DEMO_PASSWORD", "")
+_GUEST_USER, _GUEST_PASSWORD = _ENV.get("GUEST_USERNAME", ""), _ENV.get("GUEST_PASSWORD", "")
+OWNER_ONLY = {("POST", "/api/reset")}
+
+
+def _role(auth_header: str) -> str | None:
+    """'owner', 'guest', or None for wrong/missing credentials."""
+    import base64
+    import secrets
+    if not auth_header.startswith("Basic "):
+        return None
+    try:
+        user, _, password = base64.b64decode(auth_header[6:]).decode().partition(":")
+    except Exception:
+        return None
+    if _GUEST_USER and _GUEST_PASSWORD and secrets.compare_digest(user, _GUEST_USER) \
+            and secrets.compare_digest(password, _GUEST_PASSWORD):
+        return "guest"
+    if secrets.compare_digest(password, _DEMO_PASSWORD):
+        return "owner"
+    return None
 
 
 @app.middleware("http")
 async def demo_password(request, call_next):
     # /api/config stays open: hosting health checks call it without a password (it only shows the model name)
     if _DEMO_PASSWORD and request.url.path != "/api/config":
-        import base64
-        import secrets
-        auth = request.headers.get("authorization", "")
-        ok = False
-        if auth.startswith("Basic "):
-            try:
-                ok = secrets.compare_digest(base64.b64decode(auth[6:]).decode().partition(":")[2], _DEMO_PASSWORD)
-            except Exception:
-                ok = False
-        if not ok:
+        role = _role(request.headers.get("authorization", ""))
+        if role is None:
             return Response("Password required", status_code=401,
                             headers={"WWW-Authenticate": 'Basic realm="IntelDoc demo"'})
+        if role == "guest" and (request.method, request.url.path) in OWNER_ONLY:
+            return Response('{"detail":"Only the owner can reset history"}', status_code=403,
+                            media_type="application/json")
+        request.state.role = role
     return await call_next(request)
+
+
+@app.get("/api/me")
+def me(request: Request):
+    return {"role": getattr(request.state, "role", "owner")}
 
 
 # ------------------------------------------------------------------ jobs

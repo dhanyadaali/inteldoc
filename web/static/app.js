@@ -684,3 +684,14 @@ $("#policySave").addEventListener("click", async () => {
   } catch (e) { toast(e.message); }
 });
 $("#policyDefaults").addEventListener("click", () => renderPolicyForm(POLICY.defaults));
+
+// ------------------------------------------------------------------ who is signed in (guest logins can't reset history)
+api("/api/me").then((m) => {
+  if (m.role !== "guest") return;
+  $("#reset").hidden = true;
+  const chip = document.createElement("span");
+  chip.className = "model-chip";
+  chip.title = "Guest login - everything except resetting history";
+  chip.textContent = "guest";
+  $("#modelChip").after(chip);
+}).catch(() => {});
