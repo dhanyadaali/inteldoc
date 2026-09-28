@@ -1,0 +1,10 @@
+# secrets and personal files never go into the image
+.env
+data/samples/
+data/uploads/
+# not needed inside the container
+tools/
+.git/
+.pytest_cache/
+**/__pycache__/
+*.pyc

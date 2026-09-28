@@ -1,0 +1,17 @@
+# Render free web service (https://render.com) - no credit card needed.
+# Database: Neon free tier. In Render: New -> Blueprint -> pick this repo, then fill in the secrets.
+services:
+  - type: web
+    name: inteldoc
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/config
+    envVars:
+      - key: DATABASE_URL        # the Neon connection string
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: DEMO_PASSWORD       # the link is public - the browser asks for this (any username)
+        sync: false
+      - key: OCR_WARMUP          # 512 MB RAM: load OCR only when a scan arrives
+        value: "false"

@@ -1,0 +1,38 @@
+{
+  "01_happy_path.pdf": {
+    "expected": "APPROVE",
+    "why": "Clean invoice from a known vendor; everything reconciles."
+  },
+  "02_po_partial_1.pdf": {
+    "expected": "APPROVE",
+    "why": "First partial delivery against PO-7781 (4,000 of 10,000)."
+  },
+  "03_po_partial_2.pdf": {
+    "expected": "APPROVE",
+    "why": "Second partial delivery (8,500 of 10,000 used)."
+  },
+  "04_po_partial_3_overrun.pdf": {
+    "expected": "REVIEW",
+    "why": "Third partial delivery. Fine on its own (2,400 < 10,000) but takes the PO to 10,900 - only visible by looking at what was already billed."
+  },
+  "05_duplicate_reformatted.pdf": {
+    "expected": "REJECT",
+    "why": "Same invoice as 01 re-sent with the number written differently ('INV 2026/0101'). A string-equality check would miss it."
+  },
+  "06_resubmitted_new_number.pdf": {
+    "expected": "REVIEW",
+    "why": "Same goods and same amount as 01, new invoice number, dated 5 days later. Could be a legitimate repeat order or a double-bill - a human should decide."
+  },
+  "07_bank_details_changed.pdf": {
+    "expected": "REVIEW",
+    "why": "Perfect invoice from a known vendor, but the IBAN is not the one on file and there is a 'new bank details' note. Classic payment-fraud pattern."
+  },
+  "08_vat_inclusive.pdf": {
+    "expected": "APPROVE",
+    "why": "German vendor quoting gross prices (VAT included). Lines sum to the TOTAL, not the net - a naive lines==subtotal check would wrongly flag it."
+  },
+  "09_math_error.pdf": {
+    "expected": "REVIEW",
+    "why": "Same vendor, net pricing, but the total is overstated by 100.00. Must still be caught - the tax-inclusive fallback must not make the check lenient."
+  }
+}

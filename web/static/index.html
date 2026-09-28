@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IntelDoc · Invoice decisions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%232b59c3'/><path d='M10 8h9l5 5v11H10z' fill='white'/><path d='M13 18l3 3 5-6' stroke='%232b59c3' stroke-width='2.4' fill='none' stroke-linecap='round'/></svg>">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="logo" aria-hidden="true">
+      <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="8"/><path d="M10 8h9l5 5v11H10z" class="sheet"/><path d="M13 18l3 3 5-6" class="tick"/></svg>
+    </div>
+    <div>
+      <div class="brand-name">IntelDoc</div>
+      <div class="brand-sub">Invoice in → reasoned decision out</div>
+    </div>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-view="process" role="tab">Process</button>
+    <button class="tab" data-view="dashboard" role="tab">Dashboard</button>
+    <button class="tab" data-view="master" role="tab">Master data</button>
+    <button class="tab" data-view="policy" role="tab">Policy</button>
+  </nav>
+  <div class="model-chip" id="modelChip" title="LLM endpoint"><span class="dot"></span><span id="modelName">…</span></div>
+</header>
+
+<main>
+  <!-- ============================ PROCESS ============================ -->
+  <section class="view active" id="view-process">
+    <aside class="side">
+      <label class="drop" id="drop">
+        <input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg,.webp" multiple hidden>
+        <svg viewBox="0 0 24 24" class="drop-icon"><path d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg>
+        <div class="drop-title">Drop invoices here</div>
+        <div class="drop-sub">PDF, PNG or JPG · or <u>browse</u></div>
+      </label>
+
+      <div class="card lib">
+        <div class="lib-head">
+          <div class="seg" role="tablist">
+            <button class="seg-btn active" data-lib="scenarios">Edge-case scenarios</button>
+            <button class="seg-btn" data-lib="dataset">Dataset scans</button>
+          </div>
+        </div>
+        <div class="lib-hint" id="libHint"></div>
+        <div class="lib-list" id="libList"></div>
+        <div class="lib-foot">
+          <button class="btn primary" id="runAll">Run all in order</button>
+        </div>
+      </div>
+
+      <div class="card queue" id="queueCard" hidden>
+        <div class="card-title">Queue</div>
+        <ol class="queue-list" id="queueList"></ol>
+      </div>
+    </aside>
+
+    <div class="live">
+      <div class="live-empty" id="liveEmpty">
+        <div class="empty-art" aria-hidden="true">
+          <span>Extract</span><i></i><span>Transform</span><i></i><span>Validate</span><i></i><span>Decide</span><i></i><span>Load</span>
+        </div>
+        <h2>Run an invoice to watch it move through the pipeline</h2>
+        <p>Pick a scenario on the left or drop your own file. Each stage lights up as it runs,
+          every rule shows its evidence, and the decision explains itself.</p>
+      </div>
+
+      <div class="live-run" id="liveRun" hidden>
+        <div class="run-head">
+          <div>
+            <div class="run-file" id="runFile"></div>
+            <div class="run-meta" id="runMeta"></div>
+          </div>
+          <div class="run-timer" id="runTimer">0.0s</div>
+        </div>
+
+        <ol class="stages" id="stages"></ol>
+
+        <div class="decision" id="decision" hidden></div>
+
+        <div class="run-grid">
+          <div class="card doc-card">
+            <div class="card-title">Document</div>
+            <div class="doc-frame" id="docFrame"></div>
+          </div>
+          <div class="run-col">
+            <div class="card">
+              <div class="card-title">Checks <span class="count" id="checkCount"></span></div>
+              <ul class="checks" id="checks"><li class="placeholder">Waiting for extraction…</li></ul>
+            </div>
+            <div class="card">
+              <div class="card-title">What was read</div>
+              <div id="extracted" class="extracted"><div class="placeholder">Nothing yet</div></div>
+            </div>
+            <div class="card" id="logCard">
+              <div class="card-title">Stage log</div>
+              <ol class="log" id="log"></ol>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ DASHBOARD ============================ -->
+  <section class="view" id="view-dashboard">
+    <div class="kpis" id="kpis"></div>
+    <div class="dash-grid">
+      <div class="card">
+        <div class="card-title">Where invoices get stopped
+          <span class="card-sub">runs where the rule asked for review or rejection</span></div>
+        <div id="ruleChart" class="rule-chart"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Outcome mix</div>
+        <div id="mixChart"></div>
+        <div class="money" id="money"></div>
+      </div>
+    </div>
+
+    <div class="card runs-card">
+      <div class="runs-toolbar">
+        <div class="card-title">Run history</div>
+        <div class="filters" id="filters"></div>
+        <input class="search" id="search" type="search" placeholder="Search file, vendor, invoice no.">
+        <button class="btn ghost" id="refresh" title="Refresh">↻</button>
+        <button class="btn ghost danger" id="reset" title="Delete all processed invoices">Reset history</button>
+      </div>
+      <div class="table-wrap">
+        <table class="runs">
+          <thead><tr><th>#</th><th>When</th><th>Document</th><th>Vendor</th><th>Invoice</th>
+            <th class="num">Amount</th><th>Status</th><th class="num">Time</th></tr></thead>
+          <tbody id="runsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ MASTER ============================ -->
+  <section class="view" id="view-master">
+    <div class="card">
+      <div class="card-title">Purchase orders <span class="card-sub">billed = approved + awaiting review</span></div>
+      <div id="poList"></div>
+      <form class="inline-form" id="poForm">
+        <input name="po_number" placeholder="PO number, e.g. PO-7790" required>
+        <select name="vendor_id" id="poVendor" required></select>
+        <input name="amount" type="number" min="0.01" step="0.01" placeholder="Authorised amount" required>
+        <button class="btn primary" type="submit">Add PO</button>
+      </form>
+    </div>
+    <div class="card">
+      <div class="card-title">Vendors <span class="card-sub">tax id and bank account on file - invoices are checked against these</span></div>
+      <form class="inline-form" id="vendorForm">
+        <input name="name" placeholder="Legal name" required>
+        <input name="tax_id" placeholder="Tax id (VAT / GST / EIN)" required>
+        <input name="iban" placeholder="IBAN (verified, optional)">
+        <input name="currency" placeholder="USD" maxlength="3" value="USD" required>
+        <button class="btn primary" type="submit">Add vendor</button>
+      </form>
+      <div class="table-wrap"><table class="runs" id="vendorTable"></table></div>
+    </div>
+  </section>
+
+  <!-- ============================ POLICY ============================ -->
+  <section class="view" id="view-policy">
+    <div class="policy-grid">
+      <div class="card">
+        <div class="card-title">Tunable policy <span class="card-sub" id="policyVersion"></span></div>
+        <p class="muted small">Changes apply to new runs. Every run stores the policy version it was decided under.
+          Values outside the allowed range are refused.</p>
+        <form id="policyForm"></form>
+        <div class="policy-actions">
+          <input id="policyNote" placeholder="Why the change? (kept in history)">
+          <button class="btn ghost" id="policyDefaults" type="button">Restore defaults</button>
+          <button class="btn primary" id="policySave" type="button">Save as new version</button>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-title">Locked controls <span class="card-sub">cannot be relaxed</span></div>
+          <ul class="locked" id="lockedList"></ul>
+        </div>
+        <div class="card">
+          <div class="card-title">Version history</div>
+          <ol class="phist" id="policyHistory"></ol>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- run detail drawer -->
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <div id="drawerTitle"></div>
+    <button class="btn ghost" id="drawerClose" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+</aside>
+
+<div class="toast" id="toast" hidden></div>
+<div class="tooltip" id="tooltip" hidden></div>
+<script src="app.js" type="module"></script>
+</body>
+</html>
