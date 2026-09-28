@@ -50,7 +50,8 @@ _DEMO_PASSWORD = __import__("os").getenv("DEMO_PASSWORD", "")
 
 @app.middleware("http")
 async def demo_password(request, call_next):
-    if _DEMO_PASSWORD:
+    # /api/config stays open: hosting health checks call it without a password (it only shows the model name)
+    if _DEMO_PASSWORD and request.url.path != "/api/config":
         import base64
         import secrets
         auth = request.headers.get("authorization", "")
